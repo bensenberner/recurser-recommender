@@ -1,4 +1,4 @@
-# Recurser suggester
+# Recurser Recommender
 ## Disclaimer
 I made this for myself and I put it online so that I could link to it in a check-in. I'll clean it up later if you want to use it as long as you ask nicely
 ## Your current options
