@@ -25,13 +25,13 @@ It presents them in reverse chronological order based on when they last attended
 Then, you feed in a 'rating' to the script indicating whether 
 - you've already spoken with them already
 - you want to talk to them later
-- you never want to see them again in your life
+- you don't want to talk to them
 
 My workflow for this is that when I see someone I want to talk to, I reach out to them immediately, and then I go back to the script and I indicate "already messaged."
 
 Swallow the frog, you know!
 
-When you're done, you indicate that you want to quit and the script *saves your ratings to a database* (aka a pickle) so that you can pick up where you left off when you run it again.
+When you're done, you indicate that you want to quit and the script **saves your ratings to a database** (aka a pickle) so that you can pick up where you left off when you run it again.
 
 ## How do I use it?
 1. In your shell, export an environment variable called `RECURSE_AUTH_TOKEN` containing a [personal access token](https://www.recurse.com/settings/apps).
