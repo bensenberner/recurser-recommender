@@ -52,8 +52,8 @@ def _load_fake_updated_df():
             "name": ["Ben", "Plato"],
             "rating": [None, None],
             "email": ["hacker_man@big.data", "good@republ.ic"],
-            "slug": ["3890-ben-lerner", "1002-plato-greek",],
-            "most_recent_date": ["2011-01-01", "1990-02-03",],
+            "slug": ["3890-ben-lerner", "1002-plato-greek"],
+            "most_recent_date": ["2011-01-01", "1990-02-03"],
         }
     )
 
@@ -98,14 +98,15 @@ class Runner:
             "i": Rating.IGNORED.value,
             "s": Rating.SNOOZED.value,
         }
-        print("-------------")
+        print("------------------")
         help_msg = (
             "h to print this message\n"
             "m to indicate that this person has already been messaged\n"
             "i to ignore this person, preventing them from showing up in the future\n"
             "s to snooze this person, allowing you to encounter them later\n"
             "q to quit, leaving this recurser's rating unchanged, saving all of session ratings\n"
-            "! to quit WITHOUT saving any changes from this session>"
+            "! to quit WITHOUT saving any changes from this session\n"
+            "-------------------"
         )
         print(help_msg)
         for i, row in filtered_df.iterrows():
@@ -202,10 +203,30 @@ class Runner:
 
 
 @click.command()
-@click.option("--debug", is_flag=True, default=False)
-@click.option("--current_pickle", type=str, default="data/ratings.pickle")
-@click.option("--backup_pickle", type=str, default="data/ratings_backup.pickle")
-@click.option("--initial_offset", type=int, default=0)
+@click.option(
+    "--debug",
+    is_flag=True,
+    default=False,
+    help="With debug on, all data will come from statically defined dataframes; no disc or internet I/O",
+)
+@click.option(
+    "--current_pickle",
+    type=str,
+    default="data/ratings.pickle",
+    help="Path of the pickle file with the current db",
+)
+@click.option(
+    "--backup_pickle",
+    type=str,
+    default="data/ratings_backup.pickle",
+    help="Path of the pickle file with the previous version of the db",
+)
+@click.option(
+    "--initial_offset",
+    type=int,
+    default=0,
+    help="The initial offset for requests made to the recurse API. ",
+)
 def main(debug, current_pickle, backup_pickle, initial_offset):
     runner = Runner(
         is_debug=debug,
