@@ -18,14 +18,6 @@ class Rating(Enum):
 BASE_DIRECTORY_URL = "https://www.recurse.com/directory/"
 
 
-def _build_new_df_from_scratch() -> pd.DataFrame:
-    regex_str = pyip.inputStr(
-        "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
-    )
-    # TODO: remove me!!
-    return create_df_with_regex_pattern(regex_str, initial_offset=1764)
-
-
 def _load_fake_df():
     return pd.DataFrame(
         {
@@ -53,6 +45,18 @@ def _load_fake_df():
     )
 
 
+def _load_fake_updated_df():
+    return pd.DataFrame(
+        {
+            "name": ["Ben", "Plato"],
+            "rating": [None, None],
+            "email": ["hacker_man@big.data", "good@republ.ic"],
+            "slug": ["3890-ben-lerner", "1002-plato-greek",],
+            "most_recent_date": ["2011-01-01", "1990-02-03",],
+        }
+    )
+
+
 class Runner:
     # TODO: don't do this
     def __init__(
@@ -60,10 +64,12 @@ class Runner:
         is_prod,
         current_pickle_filename="data/ratings.pickle",
         backup_pickle_filename="data/ratings_backup.pickle",
+        initial_offset=0,
     ):
+        self.is_prod = is_prod
         self.current_pickle_filename = current_pickle_filename
         self.backup_pickle_filename = backup_pickle_filename
-        self.is_prod = is_prod
+        self.initial_offset = initial_offset
         if self.is_prod:
             self._create_ratings_pickle_if_not_exists_or_exit()
 
@@ -122,6 +128,16 @@ class Runner:
         if should_save == "s":
             self._overwrite_backup_and_save_df(original_df)
 
+    def _build_new_df_from_scratch(self) -> pd.DataFrame:
+        if not self.is_prod:
+            return _load_fake_updated_df()
+        regex_str = pyip.inputStr(
+            "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
+        )
+        return create_df_with_regex_pattern(
+            regex_str, initial_offset=self.initial_offset
+        )
+
     def _create_ratings_pickle_if_not_exists_or_exit(self) -> None:
         if os.path.exists(self.current_pickle_filename):
             return
@@ -134,17 +150,21 @@ class Runner:
             blockRegexes=[".*"],
         )
         if choice == "y":
-            df = _build_new_df_from_scratch()
+            df = self._build_new_df_from_scratch()
             df.to_pickle(self.current_pickle_filename)
         else:
             print("Okay, exiting without doing anything.")
             sys.exit(0)
 
     def _update(self, current_df):
-        new_df = _build_new_df_from_scratch()
-        # TODO: this doesn't work!! if the series are different
-        unseen_rows = new_df[new_df["slug"] != current_df["slug"]]
-        updated_df = pd.concat([current_df, unseen_rows]).reset_index(drop=True)
+        new_df = self._build_new_df_from_scratch()
+        current_slugs = set(current_df["slug"])
+        never_before_seen_rows = new_df[
+            new_df.apply(lambda row: row["slug"] not in current_slugs, axis=1)
+        ]
+        updated_df = pd.concat([current_df, never_before_seen_rows]).reset_index(
+            drop=True
+        )
         self._overwrite_backup_and_save_df(df=updated_df)
 
     def run(self):
@@ -169,7 +189,7 @@ class Runner:
         self.rate_recursers(current_df, filtered_df)
 
 
-# TODO: add a CLI debug mode?? to load db from memory
+# TODO: add a CLI debug mode?? to load db from memory, to set initial offset
 if __name__ == "__main__":
     runner = Runner(is_prod=False)
     runner.run()
