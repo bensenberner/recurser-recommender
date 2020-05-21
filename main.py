@@ -22,7 +22,7 @@ def _build_new_df_from_scratch() -> pd.DataFrame:
     regex_str = pyip.inputStr(
         "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
     )
-    return create_df_with_regex_pattern(regex_str)
+    return create_df_with_regex_pattern(regex_str, initial_offset=OFFSET)
 
 
 def _read_pickle_or_create_new_data(pickle_filename) -> pd.DataFrame:
@@ -105,10 +105,13 @@ class Runner:
                 "m to indicate that this person has already been messaged\n"
                 "i to ignore this person, preventing them from showing up in the future\n"
                 "s to snooze this person, allowing you to encounter them later\n"
-                "q to quit, leaving this recurser's rating unchanged, saving all of session ratings>",
-                allowRegexes=["^[misq]$"],
+                "q to quit, leaving this recurser's rating unchanged, saving all of session ratings\n"
+                "! to quit WITHOUT saving any changes from this session>",
+                allowRegexes=["^[misq!]$"],
                 blockRegexes=[".*"],
             )
+            if user_input == "!":
+                return
             if user_input == "q":
                 _overwrite_backup_and_save_df(
                     original_df,
@@ -119,12 +122,14 @@ class Runner:
             rating = user_input_to_rating[user_input]
             original_df.at[i, "rating"] = rating
 
-        print(
-            "You are all out of recursers to message! Wow! Maybe you should go back and widen your search a bit?"
+        should_save = pyip.inputStr(
+            "You are all out of recursers to message!\n"
+            "Enter y to save this session's ratings, or any other letter to exit without saving>"
         )
-        _overwrite_backup_and_save_df(
-            original_df, self.backup_pickle_filename, self.current_pickle_filename
-        )
+        if should_save == "y":
+            _overwrite_backup_and_save_df(
+                original_df, self.backup_pickle_filename, self.current_pickle_filename
+            )
 
     def run(self):
         usage_option = pyip.inputStr(
