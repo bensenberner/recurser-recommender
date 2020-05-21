@@ -22,22 +22,8 @@ def _build_new_df_from_scratch() -> pd.DataFrame:
     regex_str = pyip.inputStr(
         "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
     )
-    return create_df_with_regex_pattern(regex_str, initial_offset=OFFSET)
-
-
-def _read_pickle_or_create_new_data(pickle_filename) -> pd.DataFrame:
-    if isinstance(pickle_filename, str) and not os.path.exists(pickle_filename):
-        choice = pyip.inputStr(
-            prompt=f"Could not find pickle file located at {pickle_filename}. Would you like to pull fresh data from the RC directory? [y/n]",
-            allowRegexes=["^[yn]$"],
-            blockRegexes=[".*"],
-        )
-        if choice == "y":
-            return _build_new_df_from_scratch()
-        else:
-            print("Okay, exiting without doing anything.")
-            sys.exit(0)
-    return pd.read_pickle(pickle_filename)
+    # TODO: remove me!!
+    return create_df_with_regex_pattern(regex_str, initial_offset=1750)
 
 
 def _overwrite_backup_and_save_df(
@@ -50,32 +36,40 @@ def _overwrite_backup_and_save_df(
     df.to_pickle(current_pickle_filename)
 
 
+def _load_fake_df():
+    return pd.DataFrame(
+        {
+            "name": ["Ben", "Toph", "Christine", "Johann"],
+            "rating": [None, None, Rating.SNOOZED.value, Rating.SNOOZED.value],
+            "email": [
+                "hacker_man@big.data",
+                "toph@allen.ai",
+                "christine@data.science",
+                "johann@sebastian.bach",
+            ],
+            "slug": [
+                "3890-ben-lerner",
+                "3585-toph-allen",
+                "3858-christine-jiang",
+                "3718-johann-diedrick",
+            ],
+            "most_recent_date": [
+                "2011-01-01",
+                "2013-01-01",
+                "2017-01-01",
+                "2019-01-01",
+            ],
+        }
+    )
+
+
 class Runner:
-    def __init__(self, current_pickle_filename, backup_pickle_filename):
+    def __init__(self, current_pickle_filename, backup_pickle_filename, is_prod):
         self.current_pickle_filename = current_pickle_filename
         self.backup_pickle_filename = backup_pickle_filename
-
-    def _load_df(self, debug=False):
-        if debug:
-            return pd.DataFrame(
-                {
-                    "name": ["Ben", "Toph", "Christine", "Johann"],
-                    "rating": [None, None, Rating.SNOOZED.value, Rating.SNOOZED.value],
-                    "slug": [
-                        "3890-ben-lerner",
-                        "3585-toph-allen",
-                        "3858-christine-jiang",
-                        "3718-johann-diedrick",
-                    ],
-                    "most_recent_date": [
-                        "2011-01-01",
-                        "2013-01-01",
-                        "2017-01-01",
-                        "2019-01-01",
-                    ],
-                }
-            )
-        return _read_pickle_or_create_new_data(self.current_pickle_filename)
+        self.is_prod = is_prod
+        if self.is_prod:
+            self._create_ratings_pickle_if_not_exists_or_exit()
 
     @staticmethod
     def filter_and_sort(df: pd.DataFrame, rating_filter: str):
@@ -131,9 +125,27 @@ class Runner:
                 original_df, self.backup_pickle_filename, self.current_pickle_filename
             )
 
+    def _create_ratings_pickle_if_not_exists_or_exit(self) -> None:
+        if os.path.exists(self.current_pickle_filename):
+            return
+        choice = pyip.inputStr(
+            prompt=(
+                f"Could not find pickle file located at {self.current_pickle_filename}.\n"
+                f"Would you like to pull fresh data from the RC directory? [y/n]>"
+            ),
+            allowRegexes=["^[yn]$"],
+            blockRegexes=[".*"],
+        )
+        if choice == "y":
+            df = _build_new_df_from_scratch()
+            df.to_pickle(self.current_pickle_filename)
+        else:
+            print("Okay, exiting without doing anything.")
+            sys.exit(0)
+
     def run(self):
         usage_option = pyip.inputStr(
-            prompt="Enter:\nn for unseen recursers\ns for snoozed recursers\nu to update the database with new recursers\nq to quit>",
+            prompt="Enter:\nn for unseen recursers\ns for snoozed recursers\nu to update the database with new recursers and exit\nq to quit>",
             allowRegexes=["^[nsqu]$"],
             blockRegexes=[".*"],
         )
@@ -141,10 +153,15 @@ class Runner:
             return
         if usage_option == "u":
             raise NotImplementedError
-        original_df = self._load_df()
+
+        current_df = (
+            pd.read_pickle(self.current_pickle_filename)
+            if self.is_prod
+            else _load_fake_df()
+        )
         rating_filter = usage_option
-        filtered_df = self.filter_and_sort(original_df, rating_filter)
-        self.rate_recursers(original_df, filtered_df)
+        filtered_df = self.filter_and_sort(current_df, rating_filter)
+        self.rate_recursers(current_df, filtered_df)
 
 
 # TODO: just merge this in with the main stuff
@@ -154,8 +171,8 @@ class DataUpdater:
         self.new_pickle_filename = new_pickle_filename
 
     def update(self):
-        current_data = _read_pickle_or_create_new_data(self.current_pickle_filename)
-        new_rows = _read_pickle_or_create_new_data(self.new_pickle_filename)
+        current_data = pd.read_pickle(self.current_pickle_filename)
+        new_rows = pd.read_pickle(self.new_pickle_filename)
         unseen_rows = new_rows[new_rows["slug"] != current_data["slug"]]
         updated_df = pd.concat([current_data, unseen_rows]).reset_index(drop=True)
         _overwrite_backup_and_save_df(
@@ -168,9 +185,10 @@ class DataUpdater:
 # TODO: add a CLI debug mode?? to load db from memory
 if __name__ == "__main__":
     CURRENT_PICKLE_FILENAME = "data/ratings.pickle"
-    BACKUP_PICKLE_FILENAME = "data/old_ratings.pickle"
+    BACKUP_PICKLE_FILENAME = "data/ratings_backup.pickle"
     runner = Runner(
         current_pickle_filename=CURRENT_PICKLE_FILENAME,
         backup_pickle_filename=BACKUP_PICKLE_FILENAME,
+        is_prod=False,
     )
     runner.run()
