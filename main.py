@@ -22,8 +22,7 @@ def _build_new_df_from_scratch() -> pd.DataFrame:
     regex_str = pyip.inputStr(
         "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
     )
-    # TODO: remove this!!
-    return create_df_with_regex_pattern(regex_str, initial_offset=1750)
+    return create_df_with_regex_pattern(regex_str)
 
 
 def _read_pickle_or_create_new_data(pickle_filename) -> pd.DataFrame:
