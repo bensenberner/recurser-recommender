@@ -26,16 +26,6 @@ def _build_new_df_from_scratch() -> pd.DataFrame:
     return create_df_with_regex_pattern(regex_str, initial_offset=1750)
 
 
-def _overwrite_backup_and_save_df(
-    df, backup_pickle_filename, current_pickle_filename
-) -> None:
-    if os.path.exists(backup_pickle_filename):
-        os.remove(backup_pickle_filename)
-    if os.path.exists(current_pickle_filename):
-        os.rename(current_pickle_filename, backup_pickle_filename)
-    df.to_pickle(current_pickle_filename)
-
-
 def _load_fake_df():
     return pd.DataFrame(
         {
@@ -87,11 +77,18 @@ class Runner:
         )
         return filtered_df.sort_values(by="most_recent_date", ascending=False)
 
-    def display_row(self, row: pd.Series):
+    def _display_row(self, row: pd.Series):
         url = BASE_DIRECTORY_URL + row["slug"]
         print(row["name"] + "|" + url)
         if self.is_prod:
             webbrowser.open(url)
+
+    def _overwrite_backup_and_save_df(self, df) -> None:
+        if os.path.exists(self.backup_pickle_filename):
+            os.remove(self.backup_pickle_filename)
+        if os.path.exists(self.current_pickle_filename):
+            os.rename(self.current_pickle_filename, self.backup_pickle_filename)
+        df.to_pickle(self.current_pickle_filename)
 
     def rate_recursers(self, original_df, filtered_df):
         user_input_to_rating = {
@@ -100,7 +97,7 @@ class Runner:
             "s": Rating.SNOOZED.value,
         }
         for i, row in filtered_df.iterrows():
-            self.display_row(row)
+            self._display_row(row)
             user_input = pyip.inputStr(
                 "m to indicate that this person has already been messaged\n"
                 "i to ignore this person, preventing them from showing up in the future\n"
@@ -113,11 +110,7 @@ class Runner:
             if user_input == "!":
                 return
             if user_input == "q":
-                _overwrite_backup_and_save_df(
-                    original_df,
-                    self.backup_pickle_filename,
-                    self.current_pickle_filename,
-                )
+                self._overwrite_backup_and_save_df(original_df)
                 return
             rating = user_input_to_rating[user_input]
             original_df.at[i, "rating"] = rating
@@ -127,9 +120,7 @@ class Runner:
             "Enter y to save this session's ratings, or any other letter to exit without saving>"
         )
         if should_save == "y":
-            _overwrite_backup_and_save_df(
-                original_df, self.backup_pickle_filename, self.current_pickle_filename
-            )
+            self._overwrite_backup_and_save_df(original_df)
 
     def _create_ratings_pickle_if_not_exists_or_exit(self) -> None:
         if os.path.exists(self.current_pickle_filename):
@@ -149,6 +140,12 @@ class Runner:
             print("Okay, exiting without doing anything.")
             sys.exit(0)
 
+    def _update(self, current_df):
+        new_df = _build_new_df_from_scratch()
+        unseen_rows = new_df[new_df["slug"] != current_df["slug"]]
+        updated_df = pd.concat([current_df, unseen_rows]).reset_index(drop=True)
+        self._overwrite_backup_and_save_df(df=updated_df)
+
     def run(self):
         usage_option = pyip.inputStr(
             prompt="Enter:\nn for unseen recursers\ns for snoozed recursers\nu to update the database with new recursers and exit\nq to quit>",
@@ -157,35 +154,18 @@ class Runner:
         )
         if usage_option == "q":
             return
-        if usage_option == "u":
-            raise NotImplementedError
 
         current_df = (
             pd.read_pickle(self.current_pickle_filename)
             if self.is_prod
             else _load_fake_df()
         )
+        if usage_option == "u":
+            self._update(current_df)
+            return
         rating_filter = usage_option
         filtered_df = self.filter_and_sort(current_df, rating_filter)
         self.rate_recursers(current_df, filtered_df)
-
-
-# TODO: just merge this in with the main stuff
-class DataUpdater:
-    def __init__(self, current_pickle_filename, new_pickle_filename):
-        self.current_pickle_filename = current_pickle_filename
-        self.new_pickle_filename = new_pickle_filename
-
-    def update(self):
-        current_data = pd.read_pickle(self.current_pickle_filename)
-        new_rows = pd.read_pickle(self.new_pickle_filename)
-        unseen_rows = new_rows[new_rows["slug"] != current_data["slug"]]
-        updated_df = pd.concat([current_data, unseen_rows]).reset_index(drop=True)
-        _overwrite_backup_and_save_df(
-            df=updated_df,
-            backup_pickle_filename=self.current_pickle_filename + "_old",
-            current_pickle_filename=self.current_pickle_filename,
-        )
 
 
 # TODO: add a CLI debug mode?? to load db from memory

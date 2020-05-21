@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from main import Rating, DataUpdater, Runner
+from main import Rating, Runner
 
 
 class TestProd(TestCase):
@@ -28,7 +28,11 @@ class TestNonProd(TestCase):
 
 
 class TestMerge(TestCase):
-    def test_merge_does_not_affect_existing_rows(self):
+    # to make tests easier to read
+    @patch("sys.stdout")
+    @patch("builtins.input")
+    @patch("main.create_df_with_regex_pattern")
+    def test_merge_does_not_affect_existing_rows(self, mock_scraper, mock_input, _):
         original_df = pd.DataFrame(
             {
                 "name": ["Ben", "Rob"],
@@ -57,15 +61,25 @@ class TestMerge(TestCase):
                 "most_recent_date": ["2011-01-01", "2011-04-20", "2011-02-09"],
             }
         )
+        mock_scraper.return_value = new_df
+
         with tempfile.TemporaryDirectory() as tmpdir:
             original_filename = os.sep.join([tmpdir, "original.pickle"])
-            new_filename = os.sep.join([tmpdir, "new.pickle"])
+            backup_filename = os.sep.join([tmpdir, "backup.pickle"])
+
             original_df.to_pickle(original_filename)
-            new_df.to_pickle(new_filename)
-            updater = DataUpdater(
+
+            runner = Runner(
+                is_prod=True,
                 current_pickle_filename=original_filename,
-                new_pickle_filename=new_filename,
+                backup_pickle_filename=backup_filename,
             )
-            updater.update()
+
+            # first "update", then pass in a regex for filtering the new df
+            mock_input.side_effect = ["u", ".*"]
+            runner.run()
+
             actual_updated_df = pd.read_pickle(original_filename)
+            actual_backup_df = pd.read_pickle(backup_filename)
             pd.testing.assert_frame_equal(expected_updated_df, actual_updated_df)
+            pd.testing.assert_frame_equal(original_df, actual_backup_df)
