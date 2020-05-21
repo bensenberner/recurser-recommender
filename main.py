@@ -23,7 +23,7 @@ def _build_new_df_from_scratch() -> pd.DataFrame:
         "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
     )
     # TODO: remove me!!
-    return create_df_with_regex_pattern(regex_str, initial_offset=1750)
+    return create_df_with_regex_pattern(regex_str, initial_offset=1764)
 
 
 def _load_fake_df():
@@ -117,9 +117,9 @@ class Runner:
 
         should_save = pyip.inputStr(
             "You are all out of recursers to message!\n"
-            "Enter y to save this session's ratings, or any other letter to exit without saving>"
+            "Enter s to save this session's ratings, or any other letter to exit without saving>"
         )
-        if should_save == "y":
+        if should_save == "s":
             self._overwrite_backup_and_save_df(original_df)
 
     def _create_ratings_pickle_if_not_exists_or_exit(self) -> None:
@@ -142,6 +142,7 @@ class Runner:
 
     def _update(self, current_df):
         new_df = _build_new_df_from_scratch()
+        # TODO: this doesn't work!! if the series are different
         unseen_rows = new_df[new_df["slug"] != current_df["slug"]]
         updated_df = pd.concat([current_df, unseen_rows]).reset_index(drop=True)
         self._overwrite_backup_and_save_df(df=updated_df)

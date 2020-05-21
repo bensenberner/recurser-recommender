@@ -36,13 +36,8 @@ When you're done, you indicate that you want to quit and the script **saves your
 ## How do I use it?
 1. In your shell, export an environment variable called `RECURSE_AUTH_TOKEN` containing a [personal access token](https://www.recurse.com/settings/apps).
 2. `pip install -r requirements.txt`
-3. Open up `Directory Scraper.ipynb` (run `jupyter notebook` in this directory on the cli). Run through all the cells in that sucker. Feel free to edit the regex I have in there as you please.
-    - this creates the database, which is called `ratings.pickle`
-4. Run `python main.py` and follow the prompts
-5. Make some new BFFs
+3. Run `python main.py` and follow the prompts
+4. Make some new BFFs
 
 ## FUTURE WORK (which I will only do if someone asks me to do it)
 - provide an option to open up a window to compose email to a person
-- don't force users to run a jupyter notebook
-- Figure out what to do when you mess up the regex and then you pickle a subset of the people you wanted to rate and then you start messaging and rating people and then you realize "oops I forgot someone" but now your db contains manually entered values and you don't want to risk losing all your precious manual ratings!
-- allow users to provide their own regex
