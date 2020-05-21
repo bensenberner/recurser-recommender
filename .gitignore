@@ -1,3 +1,4 @@
+*.pickle
 .idea/
 .ipynb_checkpoints/
-*.pickle
+__pycache__/
