@@ -81,7 +81,7 @@ class Runner:
 
     def _display_row(self, row: pd.Series):
         url = BASE_DIRECTORY_URL + row["slug"]
-        print(row["name"] + "|" + url)
+        print(f"{row['name']} | {url}")
         if not self.is_debug:
             webbrowser.open(url)
 
@@ -113,7 +113,7 @@ class Runner:
             self._display_row(row)
             while True:
                 user_input = pyip.inputStr(
-                    "Enter a char in [hmisq!] >",
+                    "Enter a char in [hmisq!] >\n",
                     allowRegexes=["^[hmisq!]$"],
                     blockRegexes=[".*"],
                 )
@@ -139,7 +139,7 @@ class Runner:
         if self.is_debug:
             return _load_fake_updated_df()
         regex_str = pyip.inputStr(
-            "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
+            "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks>\n"
         )
         return create_df_with_regex_pattern(
             regex_str, initial_offset=self.initial_offset
@@ -151,7 +151,7 @@ class Runner:
         choice = pyip.inputStr(
             prompt=(
                 f"Could not find pickle file located at {self.current_pickle_filename}.\n"
-                f"Would you like to pull fresh data from the RC directory? [y/n]>"
+                f"Would you like to pull fresh data from the RC directory? (offset {self.initial_offset}) [y/n]>\n"
             ),
             allowRegexes=["^[yn]$"],
             blockRegexes=[".*"],
@@ -169,6 +169,7 @@ class Runner:
         never_before_seen_rows = new_df[
             new_df.apply(lambda row: row["slug"] not in current_slugs, axis=1)
         ]
+        print(f"{never_before_seen_rows.shape[0]} new rows added")
         updated_df = pd.concat([current_df, never_before_seen_rows]).reset_index(
             drop=True
         )
@@ -177,11 +178,10 @@ class Runner:
     def run(self):
         usage_option = pyip.inputStr(
             prompt=(
-                "Enter:\n"
                 "n for unseen recursers\n"
                 "s for snoozed recursers\n"
                 f"u to update the database with new recursers (offset {self.initial_offset}) and exit\n"
-                "q to quit>"
+                "q to quit>\n"
             ),
             allowRegexes=["^[nsuq]$"],
             blockRegexes=[".*"],
@@ -196,7 +196,7 @@ class Runner:
         )
         if usage_option == "u":
             self._update(current_df)
-            return
+            return self.run()
         rating_filter = usage_option
         filtered_df = self.filter_and_sort(current_df, rating_filter)
         self.rate_recursers(current_df, filtered_df)
@@ -212,19 +212,20 @@ class Runner:
 @click.option(
     "--current_pickle",
     type=str,
-    default="data/ratings.pickle",
+    default="data/recursers.pickle",
     help="Path of the pickle file with the current db",
 )
 @click.option(
     "--backup_pickle",
     type=str,
-    default="data/ratings_backup.pickle",
+    default="data/recursers_backup.pickle",
     help="Path of the pickle file with the previous version of the db",
 )
 @click.option(
     "--initial_offset",
     type=int,
-    default=0,
+    # TODO: change this for demo
+    default=1700,
     help="The initial offset for requests made to the recurse API. ",
 )
 def main(debug, current_pickle, backup_pickle, initial_offset):
