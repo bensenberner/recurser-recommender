@@ -1,8 +1,9 @@
+import os
 import sys
 import webbrowser
 from enum import Enum
 
-import os
+import click
 import pandas as pd
 import pyinputplus as pyip
 
@@ -58,19 +59,14 @@ def _load_fake_updated_df():
 
 
 class Runner:
-    # TODO: don't do this
     def __init__(
-        self,
-        is_prod,
-        current_pickle_filename="data/ratings.pickle",
-        backup_pickle_filename="data/ratings_backup.pickle",
-        initial_offset=0,
+        self, is_debug, current_pickle_filename, backup_pickle_filename, initial_offset,
     ):
-        self.is_prod = is_prod
+        self.is_debug = is_debug
         self.current_pickle_filename = current_pickle_filename
         self.backup_pickle_filename = backup_pickle_filename
         self.initial_offset = initial_offset
-        if self.is_prod:
+        if not self.is_debug:
             self._create_ratings_pickle_if_not_exists_or_exit()
 
     @staticmethod
@@ -86,7 +82,7 @@ class Runner:
     def _display_row(self, row: pd.Series):
         url = BASE_DIRECTORY_URL + row["slug"]
         print(row["name"] + "|" + url)
-        if self.is_prod:
+        if not self.is_debug:
             webbrowser.open(url)
 
     def _overwrite_backup_and_save_df(self, df) -> None:
@@ -102,17 +98,27 @@ class Runner:
             "i": Rating.IGNORED.value,
             "s": Rating.SNOOZED.value,
         }
+        print("-------------")
+        help_msg = (
+            "h to print this message\n"
+            "m to indicate that this person has already been messaged\n"
+            "i to ignore this person, preventing them from showing up in the future\n"
+            "s to snooze this person, allowing you to encounter them later\n"
+            "q to quit, leaving this recurser's rating unchanged, saving all of session ratings\n"
+            "! to quit WITHOUT saving any changes from this session>"
+        )
+        print(help_msg)
         for i, row in filtered_df.iterrows():
             self._display_row(row)
-            user_input = pyip.inputStr(
-                "m to indicate that this person has already been messaged\n"
-                "i to ignore this person, preventing them from showing up in the future\n"
-                "s to snooze this person, allowing you to encounter them later\n"
-                "q to quit, leaving this recurser's rating unchanged, saving all of session ratings\n"
-                "! to quit WITHOUT saving any changes from this session>",
-                allowRegexes=["^[misq!]$"],
-                blockRegexes=[".*"],
-            )
+            while True:
+                user_input = pyip.inputStr(
+                    "Enter a char in [hmisq!] >",
+                    allowRegexes=["^[hmisq!]$"],
+                    blockRegexes=[".*"],
+                )
+                if user_input != "h":
+                    break
+                print(help_msg)
             if user_input == "!":
                 return
             if user_input == "q":
@@ -129,7 +135,7 @@ class Runner:
             self._overwrite_backup_and_save_df(original_df)
 
     def _build_new_df_from_scratch(self) -> pd.DataFrame:
-        if not self.is_prod:
+        if self.is_debug:
             return _load_fake_updated_df()
         regex_str = pyip.inputStr(
             "Enter a regex to filter recurser bios. The regex '.*' will match everything. Don't include quotation marks"
@@ -169,17 +175,23 @@ class Runner:
 
     def run(self):
         usage_option = pyip.inputStr(
-            prompt="Enter:\nn for unseen recursers\ns for snoozed recursers\nu to update the database with new recursers and exit\nq to quit>",
-            allowRegexes=["^[nsqu]$"],
+            prompt=(
+                "Enter:\n"
+                "n for unseen recursers\n"
+                "s for snoozed recursers\n"
+                f"u to update the database with new recursers (offset {self.initial_offset}) and exit\n"
+                "q to quit>"
+            ),
+            allowRegexes=["^[nsuq]$"],
             blockRegexes=[".*"],
         )
         if usage_option == "q":
             return
 
         current_df = (
-            pd.read_pickle(self.current_pickle_filename)
-            if self.is_prod
-            else _load_fake_df()
+            _load_fake_df()
+            if self.is_debug
+            else pd.read_pickle(self.current_pickle_filename)
         )
         if usage_option == "u":
             self._update(current_df)
@@ -189,7 +201,20 @@ class Runner:
         self.rate_recursers(current_df, filtered_df)
 
 
-# TODO: add a CLI debug mode?? to load db from memory, to set initial offset
-if __name__ == "__main__":
-    runner = Runner(is_prod=False)
+@click.command()
+@click.option("--debug", is_flag=True, default=False)
+@click.option("--current_pickle", type=str, default="data/ratings.pickle")
+@click.option("--backup_pickle", type=str, default="data/ratings_backup.pickle")
+@click.option("--initial_offset", type=int, default=0)
+def main(debug, current_pickle, backup_pickle, initial_offset):
+    runner = Runner(
+        is_debug=debug,
+        current_pickle_filename=current_pickle,
+        backup_pickle_filename=backup_pickle,
+        initial_offset=initial_offset,
+    )
     runner.run()
+
+
+if __name__ == "__main__":
+    main()
