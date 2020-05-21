@@ -1,10 +1,30 @@
 import os
 import tempfile
 from unittest import TestCase
+from unittest.mock import patch
 
 import pandas as pd
 
-from main import Rating, DataUpdater
+from main import Rating, DataUpdater, Runner
+
+
+class TestProd(TestCase):
+    @patch("builtins.input")
+    def test_creates_rating_pickle_if_not_exist(self, mock_input):
+        mock_input.side_effect = ["y", ".*"]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_filename = os.sep.join([tmpdir, "original.pickle"])
+
+            self.assertFalse(os.path.exists(original_filename))
+            Runner(current_pickle_filename=original_filename, is_prod=True)
+            self.assertTrue(os.path.exists(original_filename))
+
+
+class TestNonProd(TestCase):
+    @patch("builtins.input", return_value="q")
+    def test_quit(self, mock_input):
+        runner = Runner(is_prod=False)
+        runner.run()
 
 
 class TestMerge(TestCase):

@@ -64,7 +64,13 @@ def _load_fake_df():
 
 
 class Runner:
-    def __init__(self, current_pickle_filename, backup_pickle_filename, is_prod):
+    # TODO: don't do this
+    def __init__(
+        self,
+        is_prod,
+        current_pickle_filename="data/ratings.pickle",
+        backup_pickle_filename="data/ratings_backup.pickle",
+    ):
         self.current_pickle_filename = current_pickle_filename
         self.backup_pickle_filename = backup_pickle_filename
         self.is_prod = is_prod
@@ -81,11 +87,11 @@ class Runner:
         )
         return filtered_df.sort_values(by="most_recent_date", ascending=False)
 
-    @staticmethod
-    def display_row(row: pd.Series):
+    def display_row(self, row: pd.Series):
         url = BASE_DIRECTORY_URL + row["slug"]
         print(row["name"] + "|" + url)
-        webbrowser.open(url)
+        if self.is_prod:
+            webbrowser.open(url)
 
     def rate_recursers(self, original_df, filtered_df):
         user_input_to_rating = {
@@ -184,11 +190,5 @@ class DataUpdater:
 
 # TODO: add a CLI debug mode?? to load db from memory
 if __name__ == "__main__":
-    CURRENT_PICKLE_FILENAME = "data/ratings.pickle"
-    BACKUP_PICKLE_FILENAME = "data/ratings_backup.pickle"
-    runner = Runner(
-        current_pickle_filename=CURRENT_PICKLE_FILENAME,
-        backup_pickle_filename=BACKUP_PICKLE_FILENAME,
-        is_prod=False,
-    )
+    runner = Runner(is_prod=False)
     runner.run()
